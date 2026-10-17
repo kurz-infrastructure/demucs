@@ -1,0 +1,76 @@
+name: go
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'go/**', '.github/workflows/go.yml' ]
+  pull_request:
+    paths: [ 'go/**', 'demucs/**', '.github/workflows/go.yml' ]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: go
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go/go.mod
+    - name: gofmt
+      run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+    - run: go vet ./...
+    - name: Test (pure Go backend)
+      env:
+        DEMUCS_EXPECT_BACKEND: purego
+      run: go test -v ./...
+
+  macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go/go.mod
+    - run: go vet ./...
+    - name: Test (Accelerate backend)
+      env:
+        DEMUCS_EXPECT_BACKEND: accelerate
+      run: go test -v ./...
+    - name: Test (pure Go backend)
+      env:
+        DEMUCS_EXPECT_BACKEND: purego
+      run: go test -v -tags demucs_purego ./...
+
+  # Checks the Go port against PyTorch on the released htdemucs weights, which
+  # are too large to commit, and reports the Accelerate speed.
+  macos-pretrained:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go/go.mod
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install PyTorch reference
+      run: pip install torch torchaudio soundfile numpy einops julius openunmix dora-search pyyaml tqdm
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/huggingface
+          ~/Library/Caches/demucs
+        key: demucs-weights-htdemucs
+    - name: Reference output
+      run: python tools/make_pretrained_reference.py htdemucs ../test.mp3 "$RUNNER_TEMP/reference.safetensors"
+    - name: Compare against PyTorch (weights downloaded by the Go package)
+      env:
+        DEMUCS_EXPECT_BACKEND: accelerate
+        DEMUCS_TEST_MODEL: htdemucs
+        DEMUCS_TEST_REFERENCE: ${{ runner.temp }}/reference.safetensors
+      run: |
+        go test -run Pretrained -v -timeout 30m .
+        go test -run XXX -bench Forward -benchtime 3x -timeout 30m .

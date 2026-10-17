@@ -269,6 +269,12 @@ demucs.separate.main(shlex.split('--mp3 --two-stems vocals -n mdx_extra "track w
 
 To use more complicated APIs, see [API docs](docs/api.md)
 
+## Calling from Go
+
+[`go/`](go/README.md) is a Go port of the Hybrid Transformer Demucs inference
+(`htdemucs`, `htdemucs_ft`, `htdemucs_6s`), using Apple Accelerate on macOS and
+pure Go elsewhere.
+
 ## Training Demucs
 
 If you want to train (Hybrid) Demucs, please follow the [training doc](docs/training.md).
