@@ -3,8 +3,9 @@ on:
   push:
     branches: [ main ]
     paths: [ 'go/**', '.github/workflows/go.yml' ]
+  # No path filter: the main-protection ruleset requires the "test" check on
+  # every PR, so this workflow has to report it even when no Go code changed.
   pull_request:
-    paths: [ 'go/**', 'demucs/**', '.github/workflows/go.yml' ]
   workflow_dispatch:
 
 defaults:
@@ -74,3 +75,22 @@ jobs:
       run: |
         go test -run Pretrained -v -timeout 30m .
         go test -run XXX -bench Forward -benchtime 3x -timeout 30m .
+
+  # Single required status check for branch protection. It passes only when
+  # the platform test jobs above pass; macos-pretrained is excluded because it
+  # depends on downloaded weights and a PyTorch install and is too slow and
+  # flaky to gate merges.
+  test:
+    needs: [linux, macos]
+    if: always()
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+    - name: Require linux and macos to pass
+      run: |
+        echo "linux: ${{ needs.linux.result }}"
+        echo "macos: ${{ needs.macos.result }}"
+        test "${{ needs.linux.result }}" = "success"
+        test "${{ needs.macos.result }}" = "success"
