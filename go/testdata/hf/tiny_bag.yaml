@@ -1,0 +1,5 @@
+models: ['tiny_bag0', 'tiny_bag1']
+weights: [
+  [1., 0.25],
+  [0.5, 1.],
+]
