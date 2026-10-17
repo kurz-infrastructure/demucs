@@ -3,8 +3,9 @@ on:
   push:
     branches: [ main ]
     paths: [ 'go/**', '.github/workflows/go.yml' ]
+  # No path filter: branch protection requires the "test" check on every PR,
+  # so it has to be reported even when no Go code changed.
   pull_request:
-    paths: [ 'go/**', 'demucs/**', '.github/workflows/go.yml' ]
   workflow_dispatch:
 
 defaults:
@@ -12,7 +13,7 @@ defaults:
     working-directory: go
 
 jobs:
-  linux:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
